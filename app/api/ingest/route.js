@@ -15,22 +15,44 @@ const supabase = createClient(
   }
 );
 
+// CORS configuration
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-ingest-key"
+};
+
+// OPTIONS request
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  });
+}
+
+// POST request
 export async function POST(request) {
   let scanId = null;
 
   try {
-    // 1. Authenticate request
+    // 1. Security check
     const incomingKey = request.headers.get("x-ingest-key");
     const secretKey = process.env.EYE_INGEST_KEY;
 
     if (!secretKey || incomingKey !== secretKey) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
+        {
+          success: false,
+          error: "Unauthorized"
+        },
+        {
+          status: 401,
+          headers: corsHeaders
+        }
       );
     }
 
-    // 2. Validate payload
+    // 2. Read request body
     const body = await request.json();
 
     const {
@@ -42,34 +64,47 @@ export async function POST(request) {
 
     if (
       !Number.isInteger(server_number) ||
-      !category_slug ||
+      typeof category_slug !== "string" ||
       !Array.isArray(players) ||
       players.length === 0 ||
       players.length > 1000
     ) {
       return NextResponse.json(
-        { success: false, error: "Invalid payload" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Invalid payload"
+        },
+        {
+          status: 400,
+          headers: corsHeaders
+        }
       );
     }
 
     // 3. Find server
-    const { data: server, error: serverError } = await supabase
-      .from("servers")
-      .select("id")
-      .eq("server_number", server_number)
-      .maybeSingle();
+    const { data: server, error: serverError } =
+      await supabase
+        .from("servers")
+        .select("id")
+        .eq("server_number", server_number)
+        .maybeSingle();
 
     if (serverError) throw serverError;
 
     if (!server) {
       return NextResponse.json(
-        { success: false, error: "Server not registered" },
-        { status: 404 }
+        {
+          success: false,
+          error: "Server not registered"
+        },
+        {
+          status: 404,
+          headers: corsHeaders
+        }
       );
     }
 
-    // 4. Find leaderboard category
+    // 4. Find category
     const { data: category, error: categoryError } =
       await supabase
         .from("leaderboard_categories")
@@ -81,22 +116,29 @@ export async function POST(request) {
 
     if (!category) {
       return NextResponse.json(
-        { success: false, error: "Unknown category" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Unknown category"
+        },
+        {
+          status: 400,
+          headers: corsHeaders
+        }
       );
     }
 
     // 5. Create scan record
-    const { data: scan, error: scanError } = await supabase
-      .from("scan_runs")
-      .insert({
-        server_id: server.id,
-        category_id: category.id,
-        source: source || "authorized_import",
-        status: "running"
-      })
-      .select("id")
-      .single();
+    const { data: scan, error: scanError } =
+      await supabase
+        .from("scan_runs")
+        .insert({
+          server_id: server.id,
+          category_id: category.id,
+          source: source || "authorized_import",
+          status: "running"
+        })
+        .select("id")
+        .single();
 
     if (scanError) throw scanError;
 
@@ -151,6 +193,7 @@ export async function POST(request) {
           .eq("id", playerId);
 
         if (updateError) throw updateError;
+
       } else {
         const { data: newPlayer, error: insertError } =
           await supabase
@@ -169,7 +212,7 @@ export async function POST(request) {
         playerId = newPlayer.id;
       }
 
-      // 7. Save leaderboard result
+      // 7. Save leaderboard entry
       const rawScore = item.score_raw == null
         ? null
         : String(item.score_raw);
@@ -200,7 +243,7 @@ export async function POST(request) {
       savedPlayers++;
     }
 
-    // 8. Mark scan as completed
+    // 8. Complete scan
     const { error: finishError } = await supabase
       .from("scan_runs")
       .update({
@@ -212,14 +255,20 @@ export async function POST(request) {
 
     if (finishError) throw finishError;
 
-    return NextResponse.json({
-      success: true,
-      message: "Data ingestion completed",
-      server: server_number,
-      category: category_slug,
-      players_processed: savedPlayers,
-      scan_id: scanId
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Data ingestion completed",
+        server: server_number,
+        category: category_slug,
+        players_processed: savedPlayers,
+        scan_id: scanId
+      },
+      {
+        status: 200,
+        headers: corsHeaders
+      }
+    );
 
   } catch (error) {
     if (scanId) {
@@ -239,7 +288,24 @@ export async function POST(request) {
         error: "Ingestion failed",
         details: error.message
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: corsHeaders
+      }
     );
   }
+}
+
+// Handle unsupported methods
+export async function GET() {
+  return NextResponse.json(
+    {
+      success: false,
+      message: "THE EYE OF DAJJAL API is online. Use POST to submit data."
+    },
+    {
+      status: 200,
+      headers: corsHeaders
+    }
+  );
 }
