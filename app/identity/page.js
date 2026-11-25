@@ -158,7 +158,7 @@ const styles = {
   detailList: { color: "#a5a5ad", paddingLeft: "18px", margin: "10px 0 0" },
   security: { display: "flex", gap: "14px", alignItems: "flex-start", padding: "19px", marginTop: "28px", borderRadius: "11px", border: "1px solid #303039", background: "#111218" },
   securityIcon: { color: "#e15b64", fontSize: "22px", lineHeight: 1 },
-  security strong: { display: "block", fontSize: "12px" },
-  security p: { color: "#96969f", fontSize: "11px", lineHeight: 1.7, margin: "7px 0 0" },
+  "security strong": { display: "block", fontSize: "12px" },
+  "security p": { color: "#96969f", fontSize: "11px", lineHeight: 1.7, margin: "7px 0 0" },
   footer: { textAlign: "center", color: "#666771", fontSize: "9px", letterSpacing: "2px", marginTop: "38px", paddingTop: "20px", borderTop: "1px solid #24252c" }
 };
