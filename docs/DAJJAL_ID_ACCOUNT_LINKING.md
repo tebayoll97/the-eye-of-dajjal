@@ -8,7 +8,7 @@
 - Darkwar credentials, raw authorization tokens, and passwords must never be exposed to the browser or stored in plaintext.
 
 ## Database
-Migration: `202611250001_dajjal_id_game_account_linking.sql`
+Migration: `20261125113053_dajjal_id_game_account_linking.sql`
 
 - `game_accounts`: canonical provider identity and verified profile fields.
 - `user_game_accounts`: many game accounts per website user; one owner per game identity.
